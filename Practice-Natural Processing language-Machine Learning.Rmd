@@ -1,0 +1,169 @@
+---
+title: "Practice-Natural Language Processing-Machine Learning"
+author: "Paul Juverdeanu"
+date: "28/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(tidyverse)
+```
+### Import the dataset
+
+```{r}
+dt <- read_tsv("Restaurant_Reviews.tsv")
+```
+
+```{r}
+view(dt)
+```
+
+### Initialising a Corpus
+```{r}
+# create the independent variables
+#columns would be all the words in the dataset
+#install.packages('tm') text mining
+library(tm)
+
+```
+```{r}
+# create the corpus
+corpus <- VCorpus(VectorSource(dt$Review))
+```
+### Cleaning the dataset
+
+```{r}
+# to avoid having double word one starting with big cases and one with lower cases
+corpus <- tm_map(corpus, content_transformer(tolower))
+```
+```{r}
+# remove all the numbers from the reviews because they are not relevant
+corpus <- tm_map(corpus, removeNumbers)
+```
+```{r}
+# remove all the punctuation marks
+corpus <- tm_map(corpus, removePunctuation)
+```
+```{r}
+#install.packages('SnowballC')
+library(SnowballC)
+# remove all the irrelevant words as prepositions and connective words
+# stopwords is a list with all the prepositions and connective words
+corpus <- tm_map(corpus, removeWords, stopwords())
+```
+
+```{r}
+# Stemming step part of the cleaning step-getting the root of each word
+# the purpose is to reduce the number of words in corpus
+corpus <- tm_map(corpus, stemDocument)
+```
+
+```{r}
+# remove the extra spaces, spaces created after removing the numbers and connectives
+corpus <- tm_map(corpus, stripWhitespace)
+```
+### Creating the Bag of Words Model
+
+```{r}
+# we create a column for each word in corpus of reviews
+# this will became a Sparse matrix - matrix with many 0s
+# the dependent variable is the column Liked
+dtm <- DocumentTermMatrix(corpus)
+```
+### Apply a Filter to clean the reviews further
+
+```{r}
+# filter the words that appear just once
+# we want to keep 99.9% of the the most frequent words in the sparse matrix
+dtm <- removeSparseTerms(dtm, 0.999)
+# we managed to remove aprox 1000 words from sparse matrix-careful with that
+```
+
+### Build our Classification Model
+
+```{r}
+# go to classification models templates Section 3 and grab one model
+# we can choose from Naive Bayes,Decision Tree, CART, Max Entropy, Random Forest
+# we choose Random Forest Classification Template
+# create a dataset with dependent variable and independent variable
+# the independent variables are in a matrix at the moment - dtm
+# our dataset needs to be a data frame
+# this data frame does not contain the dependent variable is formed of the ind #variables.
+dataset <- as.data.frame(as.matrix(dtm))
+```
+```{r}
+# we have to add the dependent variable to this data frame from the initial 
+# dataset dt - the dependent id Liked column
+dataset$Liked <- dt$Liked
+```
+```{r}
+# Encoding the target feature as factor
+dataset$Liked = factor(dataset$Liked, levels = c(0, 1))
+```
+### Splitting the dataset into the Training set and Test set
+
+```{r}
+# install.packages('caTools')
+library(caTools)
+set.seed(123)
+split = sample.split(dataset$Liked, SplitRatio = 0.8)
+training_set = subset(dataset, split == TRUE)
+test_set = subset(dataset, split == FALSE)
+```
+
+### Fitting Random Forest Classification to the Training set
+
+```{r}
+# install.packages('randomForest')
+library(randomForest)
+set.seed(123)
+classifier = randomForest(x = training_set[-692],
+                          y = training_set$Liked,
+                          ntree = 10)
+```
+### Predicting the Test set results
+
+```{r}
+y_pred = predict(classifier, newdata = test_set[-692])
+```
+
+### Building the Confusion Matrix
+```{r}
+library(caret)
+
+cm <- confusionMatrix(data = y_pred, 
+                      reference = test_set$Liked, 
+                      positive = "1")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
